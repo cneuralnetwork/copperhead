@@ -39,11 +39,23 @@ export interface RunResult {
   commit: string | null;
 }
 
-export function makeProvider(model: string): Provider {
+export async function makeProvider(model: string): Promise<Provider> {
   if (model === 'codex' || model.startsWith('codex:')) {
     const codexModel = model.startsWith('codex:') ? model.slice('codex:'.length) : undefined;
     if (codexModel === '') throw new Error('codex model override cannot be empty; use "codex" or "codex:<model-id>"');
-    return new CodexProvider({ ...(codexModel ? { model: codexModel } : {}) });
+    const { Codex } = await import('@openai/codex-sdk').catch((err: unknown) => {
+      throw new Error(
+        'Codex provider requires the optional @openai/codex-sdk package; install it alongside Copperhead before using --model codex',
+        { cause: err },
+      );
+    });
+    return new CodexProvider({
+      ...(codexModel ? { model: codexModel } : {}),
+      client: new Codex({
+        // Use the user's installed CLI and its saved login rather than a model API key.
+        codexPathOverride: process.env.COPPERHEAD_CODEX_PATH || 'codex',
+      }),
+    });
   }
   if (model === 'claude' || model.startsWith('claude')) {
     return new AnthropicProvider(model === 'claude' ? undefined : model);
@@ -140,7 +152,7 @@ async function runWithMemory(opts: RunOptions, memory: SynapMemory | null): Prom
     finishRequest: null,
   };
 
-  let provider = makeProvider(opts.model);
+  let provider = await makeProvider(opts.model);
   const constraints = await loadConstraints(repoRoot);
   const basePrompt = await buildSystemPrompt(repoRoot, config, constraints);
   // Cross-run memory is appended after the repo's own docs and constraints so
