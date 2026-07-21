@@ -203,6 +203,9 @@ describe('model selection precedence (task 4.6)', () => {
     expect(resolveModel(undefined, { ...config, model: 'gpt-5' }, {})).toBe('gpt-5');
     expect(resolveModel(undefined, config, { OPENAI_API_KEY: 'x' })).toBe('gpt-5');
     expect(resolveModel(undefined, config, { ANTHROPIC_API_KEY: 'x' })).toBe('claude');
+    expect(resolveModel('codex', config, {})).toBe('codex');
+    expect(resolveModel('codex:gpt-test', config, {})).toBe('codex:gpt-test');
+    expect(resolveModel(undefined, config, { COPPERHEAD_MODEL: 'codex' })).toBe('codex');
     expect(() => resolveModel(undefined, config, {})).toThrow(/no model configured/);
   });
 });
